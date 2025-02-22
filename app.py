@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import os
 from io import BytesIO
-import openpyxl  # Required for Excel processing
 
 # Set page title and theme
 st.set_page_config(page_title="Smart File Converter", layout="wide")
