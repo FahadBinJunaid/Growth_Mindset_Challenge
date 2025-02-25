@@ -26,6 +26,9 @@ st.markdown(
 st.title("🚀 Smart File Converter")
 st.write("Easily upload, clean, visualize, and convert files!")
 
+# Supported File Types
+SUPPORTED_TYPES = {".csv", ".xlsx", ".json", ".txt"}
+
 # File Upload Section
 uploaded_files = st.file_uploader(
     "Upload your file (CSV, Excel, JSON, TXT):",
@@ -40,17 +43,23 @@ if uploaded_files:
     for file in uploaded_files:
         file_extension = os.path.splitext(file.name)[-1].lower()
 
+        # Check for unsupported file types
+        if file_extension not in SUPPORTED_TYPES:
+            st.error(f"❌ Unsupported file type: {file_extension}. Please upload CSV, Excel, JSON, or TXT.")
+            continue
+
         # Read the file based on format
-        if file_extension == ".csv":
-            df = pd.read_csv(file)
-        elif file_extension == ".xlsx":
-            df = pd.read_excel(file, engine="openpyxl")
-        elif file_extension == ".json":
-            df = pd.read_json(file)
-        elif file_extension == ".txt":
-            df = pd.read_csv(file, delimiter="\t", encoding="utf-8")
-        else:
-            st.error(f"❌ Unsupported file type: {file_extension}")
+        try:
+            if file_extension == ".csv":
+                df = pd.read_csv(file)
+            elif file_extension == ".xlsx":
+                df = pd.read_excel(file, engine="openpyxl")
+            elif file_extension == ".json":
+                df = pd.read_json(file)
+            elif file_extension == ".txt":
+                df = pd.read_csv(file, delimiter="\t", encoding="utf-8")
+        except Exception as e:
+            st.error(f"⚠️ Error reading {file.name}: {str(e)}")
             continue
 
         # Prevent processing empty files
@@ -67,11 +76,20 @@ if uploaded_files:
         # Data Cleaning
         st.subheader("🛠️ Data Cleaning")
         if st.checkbox(f"Remove Duplicates from {file.name}"):
-            df.drop_duplicates(inplace=True)
-            st.write("✔️ Duplicates Removed!")
+            duplicate_count = df.duplicated().sum()
+            if duplicate_count > 0:
+                df.drop_duplicates(inplace=True)
+                st.write(f"✔️ {duplicate_count} Duplicates Removed!")
+            else:
+                st.write("✅ No duplicate values found.")
+
         if st.checkbox(f"Fill Missing Values for {file.name}"):
-            df.fillna("Missing", inplace=True)
-            st.write("✔️ Missing Values Filled!")
+            missing_count = df.isnull().sum().sum()
+            if missing_count > 0:
+                df.fillna("Missing", inplace=True)
+                st.write(f"✔️ {missing_count} Missing Values Filled!")
+            else:
+                st.write("✅ No missing values found.")
 
         # Data Visualization
         st.subheader("📊 Data Visualization")
@@ -84,31 +102,42 @@ if uploaded_files:
 
         # Conversion Options
         st.subheader("🔄 Convert & Download")
-        conversion_type = st.radio(f"Convert {file.name} to:", ["CSV", "Excel", "JSON", "TXT"], key=file.name)
+        conversion_type = st.radio(
+            f"Convert {file.name} to:", ["CSV", "Excel", "JSON", "TXT"], key=file.name
+        )
 
         if st.button(f"Convert {file.name}"):
             buffer = BytesIO()
             file_name = file.name.replace(file_extension, f".{conversion_type.lower()}")
 
-            if conversion_type == "CSV":
-                df.to_csv(buffer, index=False)
-                mime = "text/csv"
-            elif conversion_type == "Excel":
-                with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-                    df.to_excel(writer, index=False)
-                mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            elif conversion_type == "JSON":
-                buffer.write(df.to_json(orient="records", indent=4).encode("utf-8"))
-                mime = "application/json"
-            elif conversion_type == "TXT":
-                df.to_csv(buffer, sep="\t", index=False)
-                mime = "text/plain"
+            try:
+                if conversion_type == "CSV":
+                    df.to_csv(buffer, index=False)
+                    mime = "text/csv"
+                elif conversion_type == "Excel":
+                    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+                        df.to_excel(writer, index=False)
+                    mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                elif conversion_type == "JSON":
+                    buffer.write(df.to_json(orient="records", indent=4).encode("utf-8"))
+                    mime = "application/json"
+                elif conversion_type == "TXT":
+                    df.to_csv(buffer, sep="\t", index=False)
+                    mime = "text/plain"
 
-            buffer.seek(0)
-            st.download_button(label=f"⬇️ Download {file_name}", data=buffer, file_name=file_name, mime=mime)
+                buffer.seek(0)
+                st.download_button(
+                    label=f"⬇️ Download {file_name}", data=buffer, file_name=file_name, mime=mime
+                )
 
-            file_processed = True  # Set flag to true
+                file_processed = True  # Set flag to true
+                st.success(f"🎉 {file.name} successfully converted to {conversion_type}!")
+
+            except Exception as e:
+                st.error(f"⚠️ Error converting {file.name}: {str(e)}")
 
     # ✅ Show success message ONLY if a file was converted
     if file_processed:
         st.success("🎉 File processing complete!")
+    else:
+        st.info("📝 No files were converted.")
