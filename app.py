@@ -98,7 +98,7 @@ if uploaded_files:
             if not numeric_df.empty:
                 st.bar_chart(numeric_df)
             else:
-                st.warning(f"⚠️ No numeric data found in {file.name} for chart visualization.")
+                st.warning(f"✅ No numeric data found in {file.name} for chart visualization.")
 
         # Conversion Options
         st.subheader("🔄 Convert & Download")
@@ -108,7 +108,12 @@ if uploaded_files:
 
         if st.button(f"Convert {file.name}"):
             buffer = BytesIO()
-            file_name = file.name.replace(file_extension, f".{conversion_type.lower()}")
+            
+            # Ensure correct file extension
+            if conversion_type == "Excel":
+                file_name = file.name.replace(file_extension, ".xlsx")  # Correct extension for Excel
+            else:
+                file_name = file.name.replace(file_extension, f".{conversion_type.lower()}")
 
             try:
                 if conversion_type == "CSV":
